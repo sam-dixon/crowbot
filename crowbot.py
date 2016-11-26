@@ -1,10 +1,14 @@
-from slackclient import SlackClient
-import datetime as dt
+"""An observing chatbot for Slack"""
+
 import time
-from keys import *
+import datetime as dt
 from astropy.coordinates import SkyCoord, AltAz, EarthLocation
+from sqlalchemy import create_engine, MetaData, Table, \
+                       Column, Integer, String, DateTime
 from astropy import units as u
-from sqlalchemy import *
+from slackclient import SlackClient
+from keys import BOT_ID, CROWBOT_API
+
 
 engine = create_engine('sqlite:///log.db')
 metadata = MetaData()
@@ -19,7 +23,9 @@ conn = engine.connect()
 
 SC = SlackClient(CROWBOT_API)
 AT_BOT = '<@{}>'.format(BOT_ID)
-TELLOC = EarthLocation(lat=19.822991067*u.deg, lon=-155.469433536*u.deg, height=4205*u.m)
+TELLOC = EarthLocation(lat=19.822991067*u.deg,
+                       lon=-155.469433536*u.deg,
+                       height=4205*u.m)
 STDS = []
 with open('standards.txt') as f:
     while f.readline():
@@ -27,7 +33,8 @@ with open('standards.txt') as f:
         if len(l) > 0:
             std = {}
             std['name'] = l[0]
-            std['coord'] = SkyCoord('{} {} {} {} {} {}'.format(*l[1:7]), unit=(u.hourangle, u.deg))
+            std['coord'] = SkyCoord('{} {} {} {} {} {}'.format(*l[1:7]),
+                                    unit=(u.hourangle, u.deg))
             std['mag'] = l[7]
             std['type'] = l[8]
             STDS.append(std)
@@ -46,7 +53,7 @@ def respond(command, channel):
         if k in command:
             func, kw = ARGMATCH[k]
             kwargs[kw] = command.split(k)[1].split()[0]
-    response = func(channel, **kwargs)
+    response = func(**kwargs)
     SC.api_call('chat.postMessage', as_user=True,
                 channel=channel, text=response)
 
@@ -67,38 +74,48 @@ def parse_slack_output(slack_rtm_output):
                              time=dt.datetime.utcnow(),
                              message=output['text'])
                 if AT_BOT in output['text']:
-                    return output['text'].split(AT_BOT)[1].strip().lower(), output['channel']
+                    command = output['text'].split(AT_BOT)[1].strip().lower()
+                    return command, output['channel']
     return None, None
 
 
-def not_implemented(channel):
+def not_implemented():
+    """
+    Responds if functionality not yet implemented
+    """
     return "Sorry, I can't do that yet!"
 
 
-def utc_time(channel):
+def utc_time():
+    """
+    Responds with current UTC time
+    """
     now = dt.datetime.utcnow()
     return 'Current UTC time: {}'.format(now)
 
 
-def get_standard(channel, near_secz=1.0):
+def get_standard(near_secz=1.0):
     """
     Responds with some good standards to use near a given airmass.
-    If no airmass is given, assumes 1.0"""
+    If no airmass is given, assumes 1.0
+    """
     now = dt.datetime.utcnow()
     near_secz = float(near_secz)
-    for std in STDS:
-        std['airmass'] = std['coord'].transform_to(AltAz(obstime=now, location=TELLOC)).secz
+    for star in STDS:
+        altaz = star['coord'].transform_to(AltAz(obstime=now, location=TELLOC))
+        std['airmass'] = altaz.secz
     sorted_stds = sorted(STDS, key=lambda k: abs(k['airmass']-near_secz))
     first, second = sorted_stds[:2]
-    return ('How about {}, a {} mag {} star at airmass {:0.4}?\n'
-            'Or alternatively, {}, a {} mag {} star at airmass {:0.4}?').format(first['name'],
-                                                                                first['mag'],
-                                                                                first['type'],
-                                                                                first['airmass'],
-                                                                                second['name'],
-                                                                                second['mag'],
-                                                                                second['type'],
-                                                                                second['airmass'])
+    string = ('How about {}, a {} mag {} star at airmass {:0.4}?\n'
+              'Or {}, a {} mag {} star at airmass {:0.4}?')
+    return string.format(first['name'],
+                         first['mag'],
+                         first['type'],
+                         first['airmass'],
+                         second['name'],
+                         second['mag'],
+                         second['type'],
+                         second['airmass'])
 
 
 if __name__ == '__main__':
@@ -111,9 +128,9 @@ if __name__ == '__main__':
     if SC.rtm_connect():
         print("crowbot connected and running!")
         while True:
-            command, channel = parse_slack_output(SC.rtm_read())
-            if command and channel:
-                respond(command, channel)
+            cmd, chan = parse_slack_output(SC.rtm_read())
+            if cmd and chan:
+                respond(cmd, chan)
             time.sleep(READ_WEBSOCKET_DELAY)
     else:
-        print("Connection failed. Check the Internet connect, Slack API token, and Bot ID.")
+        print("Connection failed. Check the Slack API token, and Bot ID.")

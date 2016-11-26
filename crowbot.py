@@ -4,7 +4,18 @@ import time
 from keys import *
 from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from astropy import units as u
+from sqlalchemy import *
 
+engine = create_engine('sqlite:///log.db')
+metadata = MetaData()
+log = Table('chatlog', metadata,
+            Column('id', Integer(), primary_key=True),
+            Column('user', String()),
+            Column('channel', String()),
+            Column('time', DateTime()),
+            Column('message', String()))
+metadata.create_all(engine)
+conn = engine.connect()
 
 SC = SlackClient(CROWBOT_API)
 AT_BOT = '<@{}>'.format(BOT_ID)
@@ -37,19 +48,26 @@ def respond(command, channel):
             kwargs[kw] = command.split(k)[1].split()[0]
     response = func(channel, **kwargs)
     SC.api_call('chat.postMessage', as_user=True,
-                          channel=channel, text=response)
+                channel=channel, text=response)
 
 
 def parse_slack_output(slack_rtm_output):
     """
-    Collects messages directed at the bot
+    Collects messages directed at the bot and logs all messages
+    seen by the bot to the database.
     """
     output_list = slack_rtm_output
     if output_list and len(output_list) > 0:
         for output in output_list:
-            if output and 'text' in output and AT_BOT in output['text']:
-                # return text after the @ mention, whitespace removed
-                return output['text'].split(AT_BOT)[1].strip().lower(), output['channel']
+            if output and output['type'] == 'message':
+                ins = log.insert()
+                conn.execute(ins,
+                             user=output['user'],
+                             channel=output['channel'],
+                             time=dt.datetime.utcnow(),
+                             message=output['text'])
+                if AT_BOT in output['text']:
+                    return output['text'].split(AT_BOT)[1].strip().lower(), output['channel']
     return None, None
 
 
@@ -86,8 +104,8 @@ def get_standard(channel, near_secz=1.0):
 if __name__ == '__main__':
     READ_WEBSOCKET_DELAY = 0.5
     MATCH = {'time': utc_time,
-         'std': get_standard,
-         'standard': get_standard}
+             'std': get_standard,
+             'standard': get_standard}
     ARGMATCH = {'airmass': [get_standard, 'near_secz'],
                 'secz': [get_standard, 'near_secz']}
     if SC.rtm_connect():

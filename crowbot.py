@@ -3,6 +3,7 @@
 import time
 import ephem
 import sys
+import requests
 import datetime as dt
 from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from sqlalchemy import create_engine, MetaData, Table, \
@@ -125,6 +126,9 @@ def get_standard(near_secz=1.0):
 
 
 def sun_info():
+    """
+    Calculates when sunrise/sunset will be
+    """
     try:
         now = dt.datetime.utcnow()
         TEL.date = now
@@ -152,6 +156,23 @@ def sun_info():
     return response
 
 
+def weather_info():
+    """
+    Looks up weather info for the night
+    """
+    r = requests.get('http://www.cfht.hawaii.edu/cgi-bin/dl_gemini.csh')
+    if r.status_code != 200:
+        return "Something went wrong connecting to the CFHT weather center. See: http://www.cfht.hawaii.edu/ObsInfo/Weather/"
+    timestamp, ws, wd, temp, rh, bp = [l.split('#')[0].split('=')[-1].strip() for l in r.text.split('\n')[1:-1]]
+    return ('Weather info accessed from http://www.cfht.hawaii.edu/cgi-bin/dl_gemini.csh\n'
+            '{}\n'
+            'Wind speed: {} knots\n'
+            'Wind direction: {} deg\n'
+            'Temperature: {} deg. C\n'
+            'Rel. humidity: {} %\n'
+            'Baro. pressure: {} mbar').format(timestamp, ws, wd, temp, rh, bp)
+
+
 if __name__ == '__main__':
     READ_WEBSOCKET_DELAY = 0.5
     MATCH = {'time': utc_time,
@@ -160,7 +181,8 @@ if __name__ == '__main__':
              'standard': get_standard,
              'sun': sun_info,
              'sunset': sun_info,
-             'sunrise': sun_info}
+             'sunrise': sun_info,
+             'weather': weather_info}
     ARGMATCH = {'airmass': [get_standard, 'near_secz'],
                 'secz': [get_standard, 'near_secz']}
     if SC.rtm_connect():

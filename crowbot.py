@@ -141,16 +141,21 @@ def sun_info():
         TEL.horizon = '-18'
         astro = TEL.next_setting(SUN).datetime()
         TEL.horizon = '0'
+        sunrise = TEL.next_rising(SUN).datetime()
+        time_to_sunrise = ':'.join(str(sunrise - now).split(':')[:2])
         response = ('Current UTC time: {:%Y/%m/%d %H:%M}\n'
                     'Sunset: {:%Y/%m/%d %H:%M} (in {})\n'
                     '6 deg. twilight: {:%Y/%m/%d %H:%M}\n'
                     '12 deg. twilight: {:%Y/%m/%d %H:%M}\n'
-                    '18 deg. twilight: {:%Y/%m/%d %H:%M}\n').format(now,
+                    '18 deg. twilight: {:%Y/%m/%d %H:%M}\n\n'
+                    'Sunrise: {:%Y/%m/%d %H:%M} (in {})').format(now,
                                                                     sunset,
                                                                     time_to_sunset,
                                                                     civil,
                                                                     naut,
-                                                                    astro)
+                                                                    astro,
+                                                                    sunrise,
+                                                                    time_to_sunrise)
     except:
         response = 'Whoops! Something went wrong:\n'+str(sys.exc_info())
     return response

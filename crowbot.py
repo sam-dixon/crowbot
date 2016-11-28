@@ -1,6 +1,8 @@
 """An observing chatbot for Slack"""
 
 import time
+import ephem
+import sys
 import datetime as dt
 from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from sqlalchemy import create_engine, MetaData, Table, \
@@ -26,6 +28,10 @@ AT_BOT = '<@{}>'.format(BOT_ID)
 TELLOC = EarthLocation(lat=19.822991067*u.deg,
                        lon=-155.469433536*u.deg,
                        height=4205*u.m)
+TEL = ephem.Observer()
+TEL.lat = str(TELLOC.latitude.value)
+TEL.lon = str(TELLOC.longitude.value)
+SUN = ephem.Sun()
 STDS = []
 with open('standards.txt') as f:
     while f.readline():
@@ -118,11 +124,43 @@ def get_standard(near_secz=1.0):
                          second['airmass'])
 
 
+def sun_info():
+    try:
+        now = dt.datetime.utcnow()
+        TEL.date = now
+        sunset = TEL.next_setting(SUN).datetime()
+        time_to_sunset = ':'.join(str(sunset - now).split(':')[:2])
+        TEL.horizon = '-6'
+        civil = TEL.next_setting(SUN).datetime()
+        TEL.horizon = '-12'
+        naut = TEL.next_setting(SUN).datetime()
+        TEL.horizon = '-18'
+        astro = TEL.next_setting(SUN).datetime()
+        TEL.horizon = '0'
+        response = ('Current UTC time: {:%Y/%m/%d %H:%M}\n'
+                    'Sunset: {:%Y/%m/%d %H:%M} (in {})\n'
+                    '6 deg. twilight: {:%Y/%m/%d %H:%M}\n'
+                    '12 deg. twilight: {:%Y/%m/%d %H:%M}\n'
+                    '18 deg. twilight: {:%Y/%m/%d %H:%M}\n').format(now,
+                                                                    sunset,
+                                                                    time_to_sunset,
+                                                                    civil,
+                                                                    naut,
+                                                                    astro)
+    except:
+        response = 'Whoops! Something went wrong:\n'+str(sys.exc_info())
+    return response
+
+
 if __name__ == '__main__':
     READ_WEBSOCKET_DELAY = 0.5
     MATCH = {'time': utc_time,
+             'now': utc_time,
              'std': get_standard,
-             'standard': get_standard}
+             'standard': get_standard,
+             'sun': sun_info,
+             'sunset': sun_info,
+             'sunrise': sun_info}
     ARGMATCH = {'airmass': [get_standard, 'near_secz'],
                 'secz': [get_standard, 'near_secz']}
     if SC.rtm_connect():

@@ -133,7 +133,7 @@ def sun_info():
         now = dt.datetime.utcnow()
         TEL.date = now
         sunset = TEL.next_setting(SUN).datetime()
-        time_to_sunset = ':'.join(str(sunset - now).split(':')[:2])
+        to_sunset = ':'.join(str(sunset - now).split(':')[:2])
         TEL.horizon = '-6'
         civil = TEL.next_setting(SUN).datetime()
         TEL.horizon = '-12'
@@ -142,20 +142,20 @@ def sun_info():
         astro = TEL.next_setting(SUN).datetime()
         TEL.horizon = '0'
         sunrise = TEL.next_rising(SUN).datetime()
-        time_to_sunrise = ':'.join(str(sunrise - now).split(':')[:2])
+        to_sunrise = ':'.join(str(sunrise - now).split(':')[:2])
         response = ('Current UTC time: {:%Y/%m/%d %H:%M}\n'
                     'Sunset: {:%Y/%m/%d %H:%M} (in {})\n'
                     '6 deg. twilight: {:%Y/%m/%d %H:%M}\n'
                     '12 deg. twilight: {:%Y/%m/%d %H:%M}\n'
                     '18 deg. twilight: {:%Y/%m/%d %H:%M}\n\n'
                     'Sunrise: {:%Y/%m/%d %H:%M} (in {})').format(now,
-                                                                    sunset,
-                                                                    time_to_sunset,
-                                                                    civil,
-                                                                    naut,
-                                                                    astro,
-                                                                    sunrise,
-                                                                    time_to_sunrise)
+                                                                 sunset,
+                                                                 to_sunset,
+                                                                 civil,
+                                                                 naut,
+                                                                 astro,
+                                                                 sunrise,
+                                                                 to_sunrise)
     except:
         response = 'Whoops! Something went wrong:\n'+str(sys.exc_info())
     return response
@@ -167,9 +167,12 @@ def weather_info():
     """
     r = requests.get('http://www.cfht.hawaii.edu/cgi-bin/dl_gemini.csh')
     if r.status_code != 200:
-        return "Something went wrong connecting to the CFHT weather center. See: http://www.cfht.hawaii.edu/ObsInfo/Weather/"
-    timestamp, ws, wd, temp, rh, bp = [l.split('#')[0].split('=')[-1].strip() for l in r.text.split('\n')[1:-1]]
-    return ('Weather info accessed from http://www.cfht.hawaii.edu/cgi-bin/dl_gemini.csh\n'
+        return ('Something went wrong connecting to the CFHT weather center.\n'
+                'See: http://www.cfht.hawaii.edu/ObsInfo/Weather/')
+    timestamp, ws, wd, temp, rh, bp = [l.split('#')[0].split('=')[-1].strip()
+                                       for l in r.text.split('\n')[1:-1]]
+    return ('Weather info accessed from '
+            'http://www.cfht.hawaii.edu/cgi-bin/dl_gemini.csh\n'
             '{}\n'
             'Wind speed: {} knots\n'
             'Wind direction: {} deg\n'

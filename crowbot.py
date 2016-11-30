@@ -83,6 +83,8 @@ def parse_slack_output(slack_rtm_output):
                 if AT_BOT in output['text']:
                     command = output['text'].split(AT_BOT)[1].strip().lower()
                     return command, output['channel']
+                elif 'BITE_ME' in output['text']:
+                    return 'BITE_ME', output['channel']
     return None, None
 
 
@@ -181,8 +183,24 @@ def weather_info():
             'Baro. pressure: {} mbar').format(timestamp, ws, wd, temp, rh, bp)
 
 
+def put_self_away(channel, logfile):
+    """
+    Write log to a text file, post the location of the log file, and say goodbye
+    when kill crow command is given.
+    """
+    results = conn.execute('select * from chatlog')
+    with open(logfile, 'w') as f:
+        f.write(','.join(k for k in results.keys())+'\n')
+        for r in results:
+            f.write(','.join(str(v) for v in r)+'\n')
+    message = 'Chat logged to '+logfile+'\nGoodbye!'
+    conn.execute('drop table chatlog')
+    SC.api_call('chat.postMessage', as_user=True,
+                channel=channel, text=message)
+
+
 if __name__ == '__main__':
-    READ_WEBSOCKET_DELAY = 0.5
+    READ_WEBSOCKET_DELAY = 0.1
     MATCH = {'time': utc_time,
              'now': utc_time,
              'std': get_standard,
@@ -194,11 +212,15 @@ if __name__ == '__main__':
     ARGMATCH = {'airmass': [get_standard, 'near_secz'],
                 'secz': [get_standard, 'near_secz']}
     if SC.rtm_connect():
-        print("crowbot connected and running!")
+        print('crowbot connected and running!')
         while True:
             cmd, chan = parse_slack_output(SC.rtm_read())
+            if cmd == 'BITE_ME' and chan:
+                put_self_away(chan, 'log.txt')
+                break
             if cmd and chan:
                 respond(cmd, chan)
             time.sleep(READ_WEBSOCKET_DELAY)
+        print('crow shut down nicely')
     else:
         print("Connection failed. Check the Slack API token, and Bot ID.")

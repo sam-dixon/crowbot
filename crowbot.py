@@ -10,7 +10,7 @@ from sqlalchemy import create_engine, MetaData, Table, \
                        Column, Integer, String, DateTime
 from astropy import units as u
 from slackclient import SlackClient
-from keys import BOT_ID, CROWBOT_API
+from keys import BOT_ID, CROWBOT_API, KILL_CMD
 
 
 engine = create_engine('sqlite:///log.db')
@@ -83,8 +83,8 @@ def parse_slack_output(slack_rtm_output):
                 if AT_BOT in output['text']:
                     command = output['text'].split(AT_BOT)[1].strip().lower()
                     return command, output['channel']
-                elif 'BITE_ME' in output['text']:
-                    return 'BITE_ME', output['channel']
+                elif KILL_CMD in output['text']:
+                    return KILL_CMD, output['channel']
     return None, None
 
 
@@ -215,7 +215,7 @@ if __name__ == '__main__':
         print('crowbot connected and running!')
         while True:
             cmd, chan = parse_slack_output(SC.rtm_read())
-            if cmd == 'BITE_ME' and chan:
+            if cmd == KILL_CMD and chan:
                 put_self_away(chan, 'log.txt')
                 break
             if cmd and chan:

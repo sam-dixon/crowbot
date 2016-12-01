@@ -1,5 +1,6 @@
-"""An observing chatbot for Slack"""
+"""A Slack chatbot for observing"""
 
+import argparse
 import time
 import ephem
 import sys
@@ -13,7 +14,7 @@ from slackclient import SlackClient
 from keys import BOT_ID, CROWBOT_API, KILL_CMD
 
 
-engine = create_engine('sqlite:///log.db')
+engine = create_engine('sqlite:////tmp/log.db')
 metadata = MetaData()
 log = Table('chatlog', metadata,
             Column('id', Integer(), primary_key=True),
@@ -194,7 +195,6 @@ def put_self_away(channel, logfile):
         for r in results:
             f.write(','.join(str(v) for v in r)+'\n')
     message = 'Chat logged to '+logfile+'\nGoodbye!'
-    conn.execute('drop table chatlog')
     SC.api_call('chat.postMessage', as_user=True,
                 channel=channel, text=message)
 
@@ -212,15 +212,25 @@ if __name__ == '__main__':
     ARGMATCH = {'airmass': [get_standard, 'near_secz'],
                 'secz': [get_standard, 'near_secz']}
     if SC.rtm_connect():
-        print('crowbot connected and running!')
+        parser = argparse.ArgumentParser(description="A Slack chatbot for observing")
+        parser.add_argument('--log', '-l', type=str,
+                            default=dt.datetime.utcnow().strftime('log_%y_%j_crow_%H%M.txt'),
+                            help='Path to chatlog file (default ./log_YY_DDD_crow_HHMM.txt)')
+        parser.add_argument('--verbose', '-v', action='store_true',
+                            help='Print some status messages to the console')
+        args = parser.parse_args()
+        if args.verbose:
+            print('crowbot connected and running!')
+            print('logfile: ' + args.log)
         while True:
             cmd, chan = parse_slack_output(SC.rtm_read())
             if cmd == KILL_CMD and chan:
-                put_self_away(chan, 'log.txt')
+                put_self_away(chan, args.log)
                 break
             if cmd and chan:
                 respond(cmd, chan)
             time.sleep(READ_WEBSOCKET_DELAY)
-        print('crow shut down nicely')
+        if args.verbose:
+            print('crow shut down nicely')
     else:
         print("Connection failed. Check the Slack API token, and Bot ID.")

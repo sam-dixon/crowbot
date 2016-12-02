@@ -5,31 +5,36 @@ import time
 import ephem
 import sys
 import requests
+import yaml
 import datetime as dt
 from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from sqlalchemy import create_engine, MetaData, Table, \
                        Column, Integer, String, DateTime
 from astropy import units as u
 from slackclient import SlackClient
-from keys import BOT_ID, CROWBOT_API, KILL_CMD
 
 
-engine = create_engine('sqlite:////tmp/log.db')
+# load configuration
+config = yaml.load(open('CONFIG.yml', 'r'))
+
+
+engine = create_engine('sqlite:///'+config['log_db_path'])
 metadata = MetaData()
 log = Table('chatlog', metadata,
             Column('id', Integer(), primary_key=True),
-            Column('user', String()),
-            Column('channel', String()),
+            Column('userid', String()),
+            Column('channelid', String()),
             Column('time', DateTime()),
             Column('message', String()))
 metadata.create_all(engine)
 conn = engine.connect()
 
-SC = SlackClient(CROWBOT_API)
-AT_BOT = '<@{}>'.format(BOT_ID)
-TELLOC = EarthLocation(lat=19.822991067*u.deg,
-                       lon=-155.469433536*u.deg,
-                       height=4205*u.m)
+
+SC = SlackClient(config['slack_info']['crowbot_api'])
+AT_BOT = '<@{}>'.format(config['slack_info']['bot_id'])
+TELLOC = EarthLocation(lat=config['telescope_info']['lat']*u.deg,
+                       lon=config['telescope_info']['lon']*u.deg,
+                       height=config['telescope_info']['height']*u.m)
 TEL = ephem.Observer()
 TEL.lat = str(TELLOC.latitude.value)
 TEL.lon = str(TELLOC.longitude.value)
@@ -46,6 +51,7 @@ with open('standards.txt') as f:
             std['mag'] = l[7]
             std['type'] = l[8]
             STDS.append(std)
+KILL_CMD = config['kill_cmd']
 
 
 def respond(command, channel):

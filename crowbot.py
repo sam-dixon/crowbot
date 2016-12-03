@@ -12,6 +12,7 @@ from sqlalchemy import create_engine, MetaData, Table, \
                        Column, Integer, String, DateTime
 from astropy import units as u
 from slackclient import SlackClient
+from twilio.rest import TwilioRestClient
 
 
 # load configuration
@@ -32,6 +33,9 @@ conn = engine.connect()
 
 SC = SlackClient(config['slack_info']['crowbot_api'])
 AT_BOT = '<@{}>'.format(config['slack_info']['bot_id'])
+
+TC = TwilioRestClient(config['twilio_info']['account_sid'], config['twilio_info']['auth_token'])
+
 TELLOC = EarthLocation(lat=config['telescope_info']['lat']*u.deg,
                        lon=config['telescope_info']['lon']*u.deg,
                        height=config['telescope_info']['height']*u.m)
@@ -59,6 +63,7 @@ def respond(command, channel):
     Handle commands.
     """
     func = not_implemented
+    print(command)
     for k in MATCH.keys():
         if k in command:
             func = MATCH[k]
@@ -119,7 +124,7 @@ def get_standard(near_secz=1.0):
     near_secz = float(near_secz)
     for star in STDS:
         altaz = star['coord'].transform_to(AltAz(obstime=now, location=TELLOC))
-        std['airmass'] = altaz.secz
+        star['airmass'] = altaz.secz
     sorted_stds = sorted(STDS, key=lambda k: abs(k['airmass']-near_secz))
     first, second = sorted_stds[:2]
     string = ('How about {}, a {} mag {} star at airmass {:0.4}?\n'
@@ -190,6 +195,16 @@ def weather_info():
             'Baro. pressure: {} mbar').format(timestamp, ws, wd, temp, rh, bp)
 
 
+def send_sos():
+    """
+    Send an emergency text+email to contact person
+    """
+    TC.messages.create(to=config['twilio_info']['sos_num'],
+                       from_=config['twilio_info']['from_num'],
+                       body=config['sos_msg'])
+    return 'SOS text message sent to '+str(config['twilio_info']['sos_num'])
+
+
 def put_self_away(channel, logfile):
     """
     Write log to a text file, post the location of the log file, and say goodbye
@@ -214,7 +229,8 @@ if __name__ == '__main__':
              'sun': sun_info,
              'sunset': sun_info,
              'sunrise': sun_info,
-             'weather': weather_info}
+             'weather': weather_info,
+             config['sos_cmd'].lower(): send_sos}
     ARGMATCH = {'airmass': [get_standard, 'near_secz'],
                 'secz': [get_standard, 'near_secz']}
     if SC.rtm_connect():

@@ -2,6 +2,11 @@ slack_info:
     crowbot_api      : Slack API key
     bot_id           : bot user id
     group_channel_id : channel id for group channel
+twilio_info:
+    account_sid : AXXXXXXXXXXXXXXXXXXXXX
+    auth_token : YYYYYYYYYYYYYYYYYYYYY
+    from_num : Twilio activated phone number (see Twilio documentation)
+    sos_num : Number to send SOS text messages to
 telescope_info:
     lat : telescope latitude in degrees
     lon : telescope longitude in degrees

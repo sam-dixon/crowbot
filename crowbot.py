@@ -15,11 +15,13 @@ from slackclient import SlackClient
 from twilio.rest import TwilioRestClient
 
 
-# load configuration
-config = yaml.load(open('CONFIG.yml', 'r'))
+# Load configuration and schedule
+CONFIG = yaml.load(open('CONFIG.yml', 'r'))
+SCHED = yaml.load(open('SCHEDULE.yml', 'r'))
 
 
-engine = create_engine('sqlite:///'+config['log_db_path'])
+# Set up log database
+engine = create_engine('sqlite:///'+CONFIG['log_db_path'])
 metadata = MetaData()
 log = Table('chatlog', metadata,
             Column('id', Integer(), primary_key=True),
@@ -30,15 +32,16 @@ log = Table('chatlog', metadata,
 metadata.create_all(engine)
 conn = engine.connect()
 
+# Set up Slack and Twilio clients
+SC = SlackClient(CONFIG['slack_info']['crowbot_api'])
+AT_BOT = '<@{}>'.format(CONFIG['slack_info']['bot_id'])
+GROUP = CONFIG['slack_info']['group_channel_id']
+TC = TwilioRestClient(CONFIG['twilio_info']['account_sid'], CONFIG['twilio_info']['auth_token'])
 
-SC = SlackClient(config['slack_info']['crowbot_api'])
-AT_BOT = '<@{}>'.format(config['slack_info']['bot_id'])
-
-TC = TwilioRestClient(config['twilio_info']['account_sid'], config['twilio_info']['auth_token'])
-
-TELLOC = EarthLocation(lat=config['telescope_info']['lat']*u.deg,
-                       lon=config['telescope_info']['lon']*u.deg,
-                       height=config['telescope_info']['height']*u.m)
+# Get information about the telescope location from the configuration file
+TELLOC = EarthLocation(lat=CONFIG['telescope_info']['lat']*u.deg,
+                       lon=CONFIG['telescope_info']['lon']*u.deg,
+                       height=CONFIG['telescope_info']['height']*u.m)
 TEL = ephem.Observer()
 TEL.lat = str(TELLOC.latitude.value)
 TEL.lon = str(TELLOC.longitude.value)
@@ -55,7 +58,9 @@ with open('standards.txt') as f:
             std['mag'] = l[7]
             std['type'] = l[8]
             STDS.append(std)
-KILL_CMD = config['kill_cmd']
+
+# Set kill command that puts crow away nicely
+KILL_CMD = CONFIG['kill_cmd']
 
 
 def respond(command, channel):
@@ -143,35 +148,32 @@ def sun_info():
     """
     Calculates when sunrise/sunset will be
     """
-    try:
-        now = dt.datetime.utcnow()
-        TEL.date = now
-        sunset = TEL.next_setting(SUN).datetime()
-        to_sunset = ':'.join(str(sunset - now).split(':')[:2])
-        TEL.horizon = '-6'
-        civil = TEL.next_setting(SUN).datetime()
-        TEL.horizon = '-12'
-        naut = TEL.next_setting(SUN).datetime()
-        TEL.horizon = '-18'
-        astro = TEL.next_setting(SUN).datetime()
-        TEL.horizon = '0'
-        sunrise = TEL.next_rising(SUN).datetime()
-        to_sunrise = ':'.join(str(sunrise - now).split(':')[:2])
-        response = ('Current UTC time: {:%Y/%m/%d %H:%M}\n'
-                    'Sunset: {:%Y/%m/%d %H:%M} (in {})\n'
-                    '6 deg. twilight: {:%Y/%m/%d %H:%M}\n'
-                    '12 deg. twilight: {:%Y/%m/%d %H:%M}\n'
-                    '18 deg. twilight: {:%Y/%m/%d %H:%M}\n\n'
-                    'Sunrise: {:%Y/%m/%d %H:%M} (in {})').format(now,
-                                                                 sunset,
-                                                                 to_sunset,
-                                                                 civil,
-                                                                 naut,
-                                                                 astro,
-                                                                 sunrise,
-                                                                 to_sunrise)
-    except:
-        response = 'Whoops! Something went wrong:\n'+str(sys.exc_info())
+    now = dt.datetime.utcnow()
+    TEL.date = now
+    sunset = TEL.next_setting(SUN).datetime()
+    to_sunset = ':'.join(str(sunset - now).split(':')[:2])
+    TEL.horizon = '-6'
+    civil = TEL.next_setting(SUN).datetime()
+    TEL.horizon = '-12'
+    naut = TEL.next_setting(SUN).datetime()
+    TEL.horizon = '-18'
+    astro = TEL.next_setting(SUN).datetime()
+    TEL.horizon = '0'
+    sunrise = TEL.next_rising(SUN).datetime()
+    to_sunrise = ':'.join(str(sunrise - now).split(':')[:2])
+    response = ('Current UTC time: {:%Y/%m/%d %H:%M}\n'
+                'Sunset: {:%Y/%m/%d %H:%M} (in {})\n'
+                '6 deg. twilight: {:%Y/%m/%d %H:%M}\n'
+                '12 deg. twilight: {:%Y/%m/%d %H:%M}\n'
+                '18 deg. twilight: {:%Y/%m/%d %H:%M}\n\n'
+                'Sunrise: {:%Y/%m/%d %H:%M} (in {})').format(now,
+                                                             sunset,
+                                                             to_sunset,
+                                                             civil,
+                                                             naut,
+                                                             astro,
+                                                             sunrise,
+                                                             to_sunrise)
     return response
 
 
@@ -199,10 +201,10 @@ def send_sos():
     """
     Send an emergency text+email to contact person
     """
-    TC.messages.create(to=config['twilio_info']['sos_num'],
-                       from_=config['twilio_info']['from_num'],
-                       body=config['sos_msg'])
-    return 'SOS text message sent to '+str(config['twilio_info']['sos_num'])
+    TC.messages.create(to=CONFIG['sos_num'],
+                       from_=CONFIG['twilio_info']['from_num'],
+                       body=CONFIG['sos_msg'])
+    return 'SOS text message sent to '+str(CONFIG['twilio_info']['sos_num'])
 
 
 def put_self_away(channel, logfile):
@@ -220,8 +222,37 @@ def put_self_away(channel, logfile):
                 channel=channel, text=message)
 
 
+def convert_sun_times(sched=SCHED):
+    """
+    Convert time before/after sunset in schedule config file into UTC time.
+    """
+    now = dt.datetime.utcnow()
+    TEL.date = now
+    sunset = TEL.next_setting(SUN).datetime()
+    sunrise = TEL.next_rising(SUN).datetime()
+    new_sched = {}
+    for time, message in sched.items():
+        if 'SS+' in time:
+            td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
+            time = (sunset+td).strftime('%H:%M')
+        elif 'SS-' in time:
+            td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
+            time = (sunset-td).strftime('%H:%M')
+        elif 'SR+' in time:
+            td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
+            time = (sunrise+td).strftime('%H:%M')
+        elif 'SR-' in time:
+            td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
+            time = (sunrise-td).strftime('%H:%M')
+        new_sched[time] = message
+    return new_sched
+
+
 if __name__ == '__main__':
-    READ_WEBSOCKET_DELAY = 0.1
+    READ_WEBSOCKET_DELAY = 1
+    CHECK_SCHED_DELAY = 60
+    check_sched_ind = 0
+    SCHED = convert_sun_times(SCHED)
     MATCH = {'time': utc_time,
              'now': utc_time,
              'std': get_standard,
@@ -230,7 +261,7 @@ if __name__ == '__main__':
              'sunset': sun_info,
              'sunrise': sun_info,
              'weather': weather_info,
-             config['sos_cmd'].lower(): send_sos}
+             CONFIG['sos_cmd'].lower(): send_sos}
     ARGMATCH = {'airmass': [get_standard, 'near_secz'],
                 'secz': [get_standard, 'near_secz']}
     if SC.rtm_connect():
@@ -245,6 +276,11 @@ if __name__ == '__main__':
             print('crowbot connected and running!')
             print('logfile: ' + args.log)
         while True:
+            if check_sched_ind % CHECK_SCHED_DELAY == 0:
+                now = dt.datetime.now().strftime('%H:%M')
+                if now in SCHED.keys():
+                    SC.api_call('chat.postMessage', as_user=True,
+                                channel=GROUP, text=SCHED[now])
             cmd, chan = parse_slack_output(SC.rtm_read())
             if cmd == KILL_CMD and chan:
                 put_self_away(chan, args.log)
@@ -252,6 +288,7 @@ if __name__ == '__main__':
             if cmd and chan:
                 respond(cmd, chan)
             time.sleep(READ_WEBSOCKET_DELAY)
+            check_sched_ind += 1
         if args.verbose:
             print('crow shut down nicely')
     else:

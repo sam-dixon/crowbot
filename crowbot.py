@@ -46,6 +46,7 @@ TEL = ephem.Observer()
 TEL.lat = str(TELLOC.latitude.value)
 TEL.lon = str(TELLOC.longitude.value)
 SUN = ephem.Sun()
+MOON = ephem.Moon()
 STDS = []
 with open('standards.txt') as f:
     while f.readline():
@@ -248,6 +249,18 @@ def convert_sun_times(sched=SCHED):
     return new_sched
 
 
+def moon_info():
+    now = dt.datetime.utcnow()
+    TEL.date = now
+    MOON.compute(TEL)
+    return ('Current moon position: \n'
+            'RA: {!s} \n'
+            'Dec: {!s} \n'
+            'Current moon illumination: {:.1f}%').format(MOON.ra,
+                                                         MOON.dec,
+                                                         MOON.phase)
+
+
 if __name__ == '__main__':
     READ_WEBSOCKET_DELAY = 1
     CHECK_SCHED_DELAY = 60
@@ -261,6 +274,7 @@ if __name__ == '__main__':
              'sunset': sun_info,
              'sunrise': sun_info,
              'weather': weather_info,
+             'moon': moon_info,
              CONFIG['sos_cmd'].lower(): send_sos}
     ARGMATCH = {'airmass': [get_standard, 'near_secz'],
                 'secz': [get_standard, 'near_secz']}

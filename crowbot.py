@@ -17,7 +17,7 @@ from twilio.rest import TwilioRestClient
 
 # Load configuration and schedule
 CONFIG = yaml.load(open('CONFIG.yml', 'r'))
-SCHED = yaml.load(open('SCHEDULE.yml', 'r'))
+SCHED = yaml.load(open(CONFIG['schedule_path'], 'r'))
 
 
 # Set up log database

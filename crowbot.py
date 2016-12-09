@@ -1,5 +1,6 @@
 """A Slack chatbot for observing"""
 
+import os
 import argparse
 import time
 import datetime as dt
@@ -24,10 +25,18 @@ LOG = Table('chatlog', MD,
 MD.create_all(ENG)
 CONN = ENG.connect()
 
+# Where the save the text version of the log
+LOGDIR = CONFIG['log_txt_dir']
+LOGNAME = dt.datetime.utcnow().strftime('log_%y_%j_crow_%H%M.txt')
+LOGPATH = os.path.join(LOGDIR, LOGNAME)
+
 # Set up Slack client
 SC = SlackClient(CONFIG['slack_info']['crowbot_api'])
-AT_BOT = '<@{}>'.format(CONFIG['slack_info']['bot_id'])
-GROUP = CONFIG['slack_info']['group_channel_id']
+BOTID = [u['id'] for u in SC.api_call('users.list')['members']
+         if u['name'] == CONFIG['slack_info']['bot_name']][0]
+GROUP = [c['id'] for c in SC.api_call('channels.list')['channels']
+         if c['name'] == CONFIG['slack_info']['channel_name']][0]
+AT_BOT = '<@{}>'.format(BOTID)
 
 # Set kill command that puts crow away nicely
 KILL_CMD = CONFIG['kill_cmd']
@@ -38,7 +47,6 @@ ARGMATCH = responses.ARGMATCH
 
 # Load schedule
 SCHED = responses.SCHED
-
 
 def respond(command, channel):
     """
@@ -68,7 +76,7 @@ def parse_slack_output(slack_rtm_output):
     if output_list and len(output_list) > 0:
         for output in output_list:
             if output and output['type'] == 'message':
-                ins = LOG.insert(dml=None)
+                ins = LOG.insert()
                 CONN.execute(ins,
                              user=output['user'],
                              channel=output['channel'],
@@ -77,7 +85,6 @@ def parse_slack_output(slack_rtm_output):
                 if AT_BOT in output['text']:
                     command = output['text'].split(AT_BOT)[1].strip().lower()
                     command = command.replace('?', '')
-                    print(command)
                     return command, output['channel']
                 elif KILL_CMD in output['text']:
                     return KILL_CMD, output['channel']
@@ -105,9 +112,6 @@ if __name__ == '__main__':
 
     # Parse command line arguments
     PARSER = argparse.ArgumentParser(description="An observing chatbot")
-    LOGPATH = dt.datetime.utcnow().strftime('log_%y_%j_crow_%H%M.txt')
-    PARSER.add_argument('--log', '-l', type=str, default=LOGPATH,
-                        help='Path to chatlog file')
     PARSER.add_argument('--verbose', '-v', action='store_true',
                         help='Print some status messages to the console')
     ARGS = PARSER.parse_args()

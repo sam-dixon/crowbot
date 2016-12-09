@@ -1,18 +1,19 @@
 slack_info:
     crowbot_api      : Slack API key
-    bot_id           : bot user id
-    group_channel_id : channel id for group channel
+    channel_name     : name of group channel
+    bot_name         : username of bot
 twilio_info:
     account_sid : AXXXXXXXXXXXXXXXXXXXXX
-    auth_token : YYYYYYYYYYYYYYYYYYYYY
-    from_num : Twilio activated phone number (see Twilio documentation)
+    auth_token  : YYYYYYYYYYYYYYYYYYYYY
+    from_num    : Twilio activated phone number (see Twilio documentation)
 telescope_info:
-    lat : telescope latitude in degrees
-    lon : telescope longitude in degrees
+    lat    : telescope latitude in degrees
+    lon    : telescope longitude in degrees
     height : telescope height in meters
-kill_cmd : command that will kill the bot if sent
-sos_cmd : SOS!
-sos_num : Number to send SOS text messages to
-sos_msg : "We need your help! --crow"
-log_db_path : path to the temporary chat log database
-schedule_path: path to the schedule yaml file
+kill_cmd      : command that will kill the bot if sent
+sos_cmd       : command that will trigger sending an SOS text
+sos_num       : number to send SOS text messages to
+sos_msg       : text of the SOS message to send
+log_db_path   : path to the temporary chat log database
+log_txt_dir   : path to directory where you wish to store text versions of the logs
+standards_path: path to a text file with standard stars (see ./standards.txt for formatting)

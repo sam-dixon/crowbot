@@ -13,11 +13,18 @@ from twilio.rest import TwilioRestClient
 CONFIG = yaml.load(open('CONFIG.yml', 'r'))
 
 # Set up Twilio client for SOS text messages
-TC = TwilioRestClient(CONFIG['twilio_info']['account_sid'],
-                      CONFIG['twilio_info']['auth_token'])
+try:
+    TC = TwilioRestClient(CONFIG['twilio_info']['account_sid'],
+                          CONFIG['twilio_info']['auth_token'])
+    USE_TWIL = True
+except KeyError:
+    USE_TWIL = False
 
 # Load schedule
-SCHED = yaml.load(open(CONFIG['schedule_path'], 'r'))
+try:
+    SCHED = yaml.load(open('SCHEDULE.yml', 'r'))
+except FileNotFoundError:
+    SCHED = {}
 
 # Get information about the telescope location from the configuration file
 # Use this to create astropy EarthLocation object for calculating airmass
@@ -35,7 +42,7 @@ MOON = ephem.Moon()
 
 # Parse the list of standard stars
 STDS = []
-with open('standards.txt') as f:
+with open(CONFIG['standard_path']) as f:
     while f.readline():
         l = f.readline().split()
         if len(l) > 0:
@@ -57,20 +64,21 @@ def convert_sched_sun_times(sched):
     sunset = TEL.next_setting(SUN).datetime()
     sunrise = TEL.next_rising(SUN).datetime()
     new_sched = {}
-    for time, message in sched.items():
-        if 'SS+' in time:
-            td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
-            time = (sunset+td).strftime('%H:%M')
-        elif 'SS-' in time:
-            td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
-            time = (sunset-td).strftime('%H:%M')
-        elif 'SR+' in time:
-            td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
-            time = (sunrise+td).strftime('%H:%M')
-        elif 'SR-' in time:
-            td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
-            time = (sunrise-td).strftime('%H:%M')
-        new_sched[time] = message
+    if type(sched) == dict:
+        for time, message in sched.items():
+            if 'SS+' in time:
+                td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
+                time = (sunset+td).strftime('%H:%M')
+            elif 'SS-' in time:
+                td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
+                time = (sunset-td).strftime('%H:%M')
+            elif 'SR+' in time:
+                td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
+                time = (sunrise+td).strftime('%H:%M')
+            elif 'SR-' in time:
+                td = dt.timedelta(hours=int(time[3:5]), minutes=int(time[6:]))
+                time = (sunrise-td).strftime('%H:%M')
+            new_sched[time] = message
     return new_sched
 
 # Response functions defined here ############################################
@@ -102,7 +110,6 @@ def get_standard(near_secz=1.0):
         altaz = star['coord'].transform_to(AltAz(obstime=now, location=TELLOC))
         star['airmass'] = altaz.secz.value
     sorted_stds = sorted(STDS, key=lambda k: abs(k['airmass']-near_secz))
-    print(sorted_stds)
     first, second = sorted_stds[:2]
     string = ('How about {}, a {} mag {} star at airmass {:0.4}?\n'
               'Or {}, a {} mag {} star at airmass {:0.4}?')
@@ -185,10 +192,13 @@ def send_sos():
     """
     Send an emergency text to contact person specified in CONFIG.
     """
-    TC.messages.create(to=CONFIG['sos_num'],
-                       from_=CONFIG['twilio_info']['from_num'],
-                       body=CONFIG['sos_msg'])
-    return 'SOS text message sent to '+str(CONFIG['twilio_info']['sos_num'])
+    if USE_TWIL:
+        TC.messages.create(to=CONFIG['sos_num'],
+                           from_=CONFIG['twilio_info']['from_num'],
+                           body=CONFIG['sos_msg'])
+        return 'SOS text message sent to '+str(CONFIG['twilio_info']['sos_num'])
+    else:
+        return not_implemented()
 
 # Define matching dictionaries ################################################
 

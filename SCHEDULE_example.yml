@@ -3,3 +3,6 @@
 'SS-00:15': '15 minutes to sunset!'
 'SS+01:00': 'An hour after sunset.'
 'SR-01:00': 'Sunrise is in one hour.'
+'12:00': |
+         "Multiline output"
+         "Looks like this!"

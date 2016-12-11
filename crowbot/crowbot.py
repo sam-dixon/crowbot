@@ -10,8 +10,10 @@ from sqlalchemy import create_engine, MetaData, Table, \
 from slackclient import SlackClient
 import responses
 
+WORKDIR = os.path.dirname(__file__)
+
 # Load configuration
-CONFIG = yaml.load(open('CONFIG.yml', 'r'))
+CONFIG = yaml.load(open(os.path.join(WORKDIR, 'CONFIG.yml'), 'r'))
 
 # Set up log database
 ENG = create_engine('sqlite:///'+CONFIG['log_db_path'])
@@ -27,6 +29,8 @@ CONN = ENG.connect()
 
 # Where the save the text version of the log
 LOGDIR = CONFIG['log_txt_dir']
+if not os.path.exists(LOGDIR):
+    os.makedirs(LOGDIR)
 LOGNAME = dt.datetime.utcnow().strftime('log_%y_%j_crow_%H%M.txt')
 LOGPATH = os.path.join(LOGDIR, LOGNAME)
 
@@ -120,7 +124,6 @@ if __name__ == '__main__':
     if SC.rtm_connect():
         if ARGS.verbose:
             print('crowbot connected and running!')
-            print('logfile: ' + ARGS.log)
         # Main loop
         while True:
             NOW = dt.datetime.now().strftime('%H:%M')
@@ -132,7 +135,7 @@ if __name__ == '__main__':
             CMD, CHAN = parse_slack_output(SC.rtm_read())
             # If kill command is given, put self away and end loop
             if CMD == KILL_CMD and CHAN:
-                put_self_away(CHAN, ARGS.log)
+                put_self_away(CHAN, LOGPATH)
                 break
             # Otherwise, respond to command
             if CMD and CHAN:

@@ -1,5 +1,6 @@
 """ Response functions and configuration for crowbot """
 
+import os
 import ephem
 import requests
 import yaml
@@ -8,9 +9,10 @@ from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from astropy import units as u
 from twilio.rest import TwilioRestClient
 
+WORKDIR = os.path.dirname(__file__)
 
 # Load configuration file
-CONFIG = yaml.load(open('CONFIG.yml', 'r'))
+CONFIG = yaml.load(open(os.path.join(WORKDIR, 'CONFIG.yml'), 'r'))
 
 # Set up Twilio client for SOS text messages
 try:

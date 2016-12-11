@@ -9,10 +9,10 @@ from astropy.coordinates import SkyCoord, AltAz, EarthLocation
 from astropy import units as u
 from twilio.rest import TwilioRestClient
 
-WORKDIR = os.path.dirname(__file__)
+CONFIGDIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config')
 
-# Load configuration file
-CONFIG = yaml.load(open(os.path.join(WORKDIR, 'CONFIG.yml'), 'r'))
+# Load configuration
+CONFIG = yaml.load(open(os.path.join(CONFIGDIR, 'CONFIG.yml'), 'r'))
 
 # Set up Twilio client for SOS text messages
 try:
@@ -90,7 +90,7 @@ def not_implemented():
     """
     Responds if functionality not yet implemented
     """
-    return "Sorry, I can't do that yet!"
+    return "That doesn't look like anything to me..."
 
 
 def utc_time():

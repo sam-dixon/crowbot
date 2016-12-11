@@ -1,0 +1,3 @@
+include README.md
+include crowbot/*_example.yml
+incldue crowbot/standards.txt

@@ -8,12 +8,12 @@ import yaml
 from sqlalchemy import create_engine, MetaData, Table, \
                        Column, Integer, String, DateTime
 from slackclient import SlackClient
-import responses
+from responses import *
 
-WORKDIR = os.path.dirname(__file__)
+CONFIGDIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config')
 
 # Load configuration
-CONFIG = yaml.load(open(os.path.join(WORKDIR, 'CONFIG.yml'), 'r'))
+CONFIG = yaml.load(open(os.path.join(CONFIGDIR, 'CONFIG.yml'), 'r'))
 
 # Set up log database
 ENG = create_engine('sqlite:///'+CONFIG['log_db_path'])
@@ -45,18 +45,12 @@ AT_BOT = '<@{}>'.format(BOTID)
 # Set kill command that puts crow away nicely
 KILL_CMD = CONFIG['kill_cmd']
 
-# Set match words and argument match dictionary
-MATCH = responses.MATCH
-ARGMATCH = responses.ARGMATCH
-
-# Load schedule
-SCHED = responses.SCHED
 
 def respond(command, channel):
     """
     Handle commands.
     """
-    func = responses.not_implemented
+    func = not_implemented
     for k in MATCH.keys():
         if k in command:
             func = MATCH[k]
@@ -82,8 +76,8 @@ def parse_slack_output(slack_rtm_output):
             if output and output['type'] == 'message':
                 ins = LOG.insert()
                 CONN.execute(ins,
-                             user=output['user'],
-                             channel=output['channel'],
+                             userid=output['user'],
+                             channelid=output['channel'],
                              time=dt.datetime.utcnow(),
                              message=output['text'])
                 if AT_BOT in output['text']:
@@ -111,7 +105,7 @@ def put_self_away(channel, logfile):
     return message
 
 
-if __name__ == '__main__':
+def main():
     READ_WEBSOCKET_DELAY = 1
 
     # Parse command line arguments
@@ -146,3 +140,6 @@ if __name__ == '__main__':
             print('crow shut down nicely')
     else:
         print("Connection failed. Check the Slack API token, and Bot ID.")
+
+if __name__ == '__main__':
+    main()

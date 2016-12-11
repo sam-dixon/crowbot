@@ -27,10 +27,10 @@ If you want Crowbot to be able to send emergency text messages, you'll need an a
 If you don't want to deal with this, you can remove the `twilio_info` block from the CONFIG.yml file.
 
 ### Editing `CONFIG.yml`
-Make a copy of the `CONFIG_example.yml` file and save it as `CONFIG.yml`. This is where you can enter all of the information Crowbot needs to work. The example file explains what each item does.
+Make a copy of the `config/CONFIG_example.yml` file and save it as `config/CONFIG.yml`. This is where you can enter all of the information Crowbot needs to work. The example file explains what each item does.
 
 ### Setting up the schedule
-Crowbot can send reminder messages to the group channel. Like the `CONFIG` file, just make a copy of `SCHEDULE_example.yml` and save it as `SCHEDULE.yml`. You can add entries as (time, message) pairs. 
+Crowbot can send reminder messages to the group channel. Like the `CONFIG` file, just make a copy of `config/SCHEDULE_example.yml` and save it as `config/SCHEDULE.yml`. You can add entries as (time, message) pairs. 
 
 You can also set times that reference sunrise and sunset. For example, to have a message that goes out 15 minutes before sunset, set the time as `'SS-00:15'`. For a message that goes out an hour after sunrise, set the time to be `'SR+01:00'`.
 
@@ -42,7 +42,7 @@ An example list of standard stars is include under `standards.txt`. You can use 
 ### Run Crowbot
 Now that the hard work is done, run Crowbot with
 ```
-python crowbot.py [-v]
+python crowbot/crowbot.py [-v]
 ```
 The `-v` flag runs `crowbot.py` in verbose mode, so some status messages are printed to the console.
 
@@ -60,7 +60,7 @@ To create a new feature, then, just define a new function and add the match word
 ## `tell_crow`
 `tell_crow.py` allows you to speak through Crowbot from the command line. Just run
 ```
-python tell_crow.py "Your message here"
+python crowbot/tell_crow.py "Your message here"
 ```
 
 ## Stopping Crowbot

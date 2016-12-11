@@ -5,8 +5,8 @@ import sys
 import yaml
 from slackclient import SlackClient
 
-WORKDIR = os.path.dirname(__file__)
-CONFIG = yaml.load(open(os.path.join(WORKDIR, 'CONFIG.yml'), 'r'))
+CONFIGDIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config')
+CONFIG = yaml.load(open(os.path.join(CONFIGDIR, 'CONFIG.yml'), 'r'))
 SC = SlackClient(CONFIG['slack_info']['crowbot_api'])
 GROUP = [c['id'] for c in SC.api_call('channels.list')['channels']
          if c['name'] == CONFIG['slack_info']['channel_name']][0]

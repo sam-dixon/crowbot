@@ -1,2 +1,1 @@
-from crowbot import *
-from responses import *
+from .crowbot import *

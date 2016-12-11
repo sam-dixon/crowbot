@@ -1,0 +1,6 @@
+build/
+*egg-info
+dist/
+logs/
+*/__pycache__/
+config/CONFIG.yml

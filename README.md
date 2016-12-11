@@ -2,6 +2,8 @@
 
 Crowbot is a configurable and extensible Slack chatbot for astronomical observing.
 
+![Crowbot in action](https://github.com/sam-dixon/crowbot/raw/master/cap.gif)
+
 ## Included features:
 
 * Tells the time until sunset and sunrise (`hey @crowbot when's sunset?`)

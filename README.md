@@ -20,6 +20,11 @@ You can also easily modify existing features or create new functionality by edit
 
 ## Getting started
 
+First, install the package and all dependencies with
+```
+python setup.py install
+```
+
 ### Setting up your Slack environment
 Crowbot uses the Slack API to communicate. Follow the instructions [here](https://api.slack.com/bot-users) to set up a new bot user integration. Make note of the bot access token that gets generated.
 
